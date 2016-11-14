@@ -1,35 +1,35 @@
 //
-//  ViewController.m
+//  TemperatureViewController.m
 //  CoreBluetoothDemo
 //
-//  Created by LiuYiiyuan on 16/8/8.
+//  Created by LiuYiiyuan on 16/10/20.
 //  Copyright © 2016年 LiuYiiyuan. All rights reserved.
 //
 
-#import "ViewController.h"
+#import "TemperatureViewController.h"
 
-NSString * const BLOOD_PRESSURE_MEASUREMENT_UUID = @"2A35";
-NSString * const BLOOD_PRESSURE_FEATURE_UUID = @"2A49";
-NSString * const DATE_TIME_UUID = @"2A08";
+NSString * const TEMPERATURE_MEASUREMENT_UUID = @"2A1C";
+NSString * const TEMPERATURE_FEATURE_UUID = @"2A1D";
+NSString * const DATE_TIME_UUID_ = @"2A08";
+NSString * const TEMPERATURE_UUID = @"1809";
 
-@interface ViewController () <CBCentralManagerDelegate, CBPeripheralDelegate>
+@interface TemperatureViewController () <CBPeripheralDelegate, CBCentralManagerDelegate>
+
 @property (strong, nonatomic) CBCentralManager *centralManager;
 @property (strong, nonatomic) CBPeripheral *peripheral;
-@property (weak, nonatomic) IBOutlet UITextField *deviceNameTextField;
+
+@property (weak, nonatomic) IBOutlet UITextField *nameTextField;
 @property (weak, nonatomic) IBOutlet UILabel *statusLabel;
+@property (weak, nonatomic) IBOutlet UITextField *temperatureTextField;
 @property (weak, nonatomic) IBOutlet UIActivityIndicatorView *indicator;
 @property (weak, nonatomic) IBOutlet UILabel *scanningLabel;
-@property (weak, nonatomic) IBOutlet UITextField *sysTextField;
-@property (weak, nonatomic) IBOutlet UITextField *diaTextField;
-@property (weak, nonatomic) IBOutlet UITextField *pulTextField;
+
 @end
 
-@implementation ViewController
+@implementation TemperatureViewController
 
 - (void)viewDidLoad {
     [super viewDidLoad];
-    // Do any additional setup after loading the view, typically from a nib.
-    //dispatch_queue_t centralQueue = dispatch_queue_create("central", DISPATCH_QUEUE_SERIAL);
     self.centralManager = [[CBCentralManager alloc] initWithDelegate:self queue:nil];
 }
 
@@ -39,7 +39,8 @@ NSString * const DATE_TIME_UUID = @"2A08";
 
 - (void)discoverDevices {
     NSLog(@"start scan");
-    [self.centralManager scanForPeripheralsWithServices:[NSArray arrayWithObjects:[CBUUID UUIDWithString:@"1810"], nil] options:nil];
+    [self.centralManager scanForPeripheralsWithServices:[NSArray arrayWithObjects:[CBUUID UUIDWithString:TEMPERATURE_UUID], nil] options:nil];
+    
     [self.indicator setHidden:NO];
     [self.indicator startAnimating];
     [self.scanningLabel setHidden:NO];
@@ -79,7 +80,6 @@ NSString * const DATE_TIME_UUID = @"2A08";
     }
 }
 
-
 - (void)centralManager:(CBCentralManager *)central didDiscoverPeripheral:(CBPeripheral *)peripheral advertisementData:(NSDictionary<NSString *,id> *)advertisementData RSSI:(NSNumber *)RSSI{
     if (!peripheral || !peripheral.name || ([peripheral.name isEqualToString:@""])) {
         return;
@@ -89,19 +89,19 @@ NSString * const DATE_TIME_UUID = @"2A08";
     [self stopDiscover];
     self.peripheral = peripheral;
     peripheral.delegate = self;
-    [self.centralManager connectPeripheral:peripheral options:nil];
+    [self.centralManager connectPeripheral:self.peripheral options:nil];
     self.statusLabel.text = @"connecting";
     self.statusLabel.textColor = [UIColor blackColor];
 }
 
 - (void)centralManager:(CBCentralManager *)central didConnectPeripheral:(CBPeripheral *)peripheral{
-    if (!peripheral) {
-        return;
-    }
+//    if (!peripheral) {
+//        return;
+//    }
     NSLog(@"did connect peripheral");
     self.statusLabel.text = @"connected";
     self.statusLabel.textColor = [UIColor greenColor];
-    self.deviceNameTextField.text = peripheral.name;
+    self.nameTextField.text = peripheral.name;
     [self.peripheral discoverServices:nil];
 }
 
@@ -113,14 +113,14 @@ NSString * const DATE_TIME_UUID = @"2A08";
     NSLog(@"disconnect peripheral: %@",peripheral.name);
     self.statusLabel.text = @"disconnected";
     self.statusLabel.textColor = [UIColor redColor];
-    self.deviceNameTextField.text = @"";
+    self.nameTextField.text = @"";
 }
 
 #pragma mark - Peripheral Delegate
 - (void)peripheral:(CBPeripheral *)peripheral didDiscoverServices:(NSError *)error{
     for (CBService *service in peripheral.services) {
         NSLog(@"discover service: %@", service);
-        if ([service.UUID isEqual:[CBUUID UUIDWithString:@"1810"]] ) {
+        if ([service.UUID isEqual:[CBUUID UUIDWithString:TEMPERATURE_UUID]] ) {
             [peripheral discoverCharacteristics:nil forService:service];
             break;
         }
@@ -129,13 +129,13 @@ NSString * const DATE_TIME_UUID = @"2A08";
 
 - (void)peripheral:(CBPeripheral *)peripheral didDiscoverCharacteristicsForService:(CBService *)service error:(NSError *)error{
     for (CBCharacteristic *character in service.characteristics) {
-        if ([character.UUID isEqual:[CBUUID UUIDWithString:BLOOD_PRESSURE_MEASUREMENT_UUID]]) {
+        if ([character.UUID isEqual:[CBUUID UUIDWithString:TEMPERATURE_MEASUREMENT_UUID]]) {
             [peripheral setNotifyValue:YES forCharacteristic:character];
         }
-        if ([character.UUID isEqual:[CBUUID UUIDWithString:BLOOD_PRESSURE_FEATURE_UUID]]) {
+        if ([character.UUID isEqual:[CBUUID UUIDWithString:TEMPERATURE_FEATURE_UUID]]) {
             [peripheral readValueForCharacteristic:character];
         }
-        if ([character.UUID isEqual:[CBUUID UUIDWithString:DATE_TIME_UUID]]) {
+        if ([character.UUID isEqual:[CBUUID UUIDWithString:DATE_TIME_UUID_]]) {
             [peripheral readValueForCharacteristic:character];
         }
         NSLog(@"discover charcteristic: %@",character);
@@ -147,26 +147,16 @@ NSString * const DATE_TIME_UUID = @"2A08";
         NSLog(@"%@",[error localizedDescription]);
     }else{
         NSData *data = characteristic.value;
-        if ([characteristic.UUID isEqual:[CBUUID UUIDWithString:BLOOD_PRESSURE_MEASUREMENT_UUID]] && data) {
+        NSLog(@"data read: %@ UUID:%@",data,characteristic.UUID);
+        if ([characteristic.UUID isEqual:[CBUUID UUIDWithString:TEMPERATURE_MEASUREMENT_UUID]]) {
             const uint8_t *reportData = [data bytes];
-            NSInteger sys = reportData[1];
-            NSInteger dia = reportData[3];
-            NSInteger pul = reportData[7];
-            NSLog(@"sys:%ld",(long)sys);
-            NSLog(@"dia:%ld",(long)dia);
-            NSLog(@"pul:%ld",(long)pul);
-            if (sys == 255) {
-                self.sysTextField.text = @"error";
-                self.diaTextField.text = @"error";
-                self.pulTextField.text = @"error";
+            NSInteger temp = reportData[1];
+            double temperature = 0.1 * temp + 25.6;
+            if (temperature < 32.0 || temperature > 42.0) {
+                self.temperatureTextField.text = @"error";
             }else{
-                self.sysTextField.text = [NSString stringWithFormat:@"%ld",sys];
-                self.diaTextField.text = [NSString stringWithFormat:@"%ld",dia];
-                self.pulTextField.text = [NSString stringWithFormat:@"%ld",pul];
+                self.temperatureTextField.text = [NSString stringWithFormat:@"%.1f℃",temperature];
             }
-            
-        }else{
-            NSLog(@"data value: %@ UUID:%@",data, characteristic.UUID);
         }
     }
 }
@@ -176,31 +166,15 @@ NSString * const DATE_TIME_UUID = @"2A08";
         NSLog(@"%@",[error localizedDescription]);
     }else{
         NSData *data = characteristic.value;
-        if ([characteristic.UUID isEqual:[CBUUID UUIDWithString:BLOOD_PRESSURE_MEASUREMENT_UUID]] && data) {
-            const uint8_t *reportData = [data bytes];
-            NSInteger sys = reportData[1];
-            NSInteger dia = reportData[3];
-            NSInteger pul = reportData[7];
-            NSLog(@"sys:%ld",(long)sys);
-            NSLog(@"dia:%ld",(long)dia);
-            NSLog(@"pul:%ld",(long)pul);
-            
-            self.sysTextField.text = [NSString stringWithFormat:@"%ld",sys];
-            self.diaTextField.text = [NSString stringWithFormat:@"%ld",dia];
-            self.pulTextField.text = [NSString stringWithFormat:@"%ld",pul];
-        }else{
-            NSLog(@"data notify: %@ UUID:%@",data, characteristic.UUID);
-        }
+        NSLog(@"data notify: %@ UUID:%@",data,characteristic.UUID);
     }
 }
 
-#pragma mark - UI control
-- (IBAction)touchScanButton:(UIButton *)sender {
-//    NSDictionary *options = [NSDictionary dictionaryWithObject:[NSNumber numberWithBool:NO] forKey:CBCentralManagerScanOptionAllowDuplicatesKey];
+- (IBAction)touchScanButton:(id)sender {
     [self discoverDevices];
 }
 
-- (IBAction)touchStopButton:(UIButton *)sender {
+- (IBAction)touchStopButton:(id)sender {
     [self stopDiscover];
 }
 

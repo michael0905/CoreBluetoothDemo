@@ -1,16 +1,14 @@
 //
-//  ViewController.h
+//  TemperatureViewController.h
 //  CoreBluetoothDemo
 //
-//  Created by LiuYiiyuan on 16/8/8.
+//  Created by LiuYiiyuan on 16/10/20.
 //  Copyright © 2016年 LiuYiiyuan. All rights reserved.
 //
 
 #import <UIKit/UIKit.h>
 #import <CoreBluetooth/CoreBluetooth.h>
 
-@interface ViewController : UIViewController
-
+@interface TemperatureViewController : UIViewController
 
 @end
-
